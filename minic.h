@@ -33,21 +33,22 @@ bool equal(Token *tok, char *op);
 Token *skip(Token *tok, char *op);
 Token *tokenize(char *input);
 
-// s
+// 
 // parser.c
 // 
 
 typedef enum {
-  ND_ADD, // +
-  ND_SUB, // -
-  ND_MUL, // *
-  ND_DIV, // /
-  ND_NEG, // unary -
-  ND_EQ, // ==
-  ND_NE, // !=
-  ND_LT, // <
-  ND_LE, // <=
-  ND_NUM, // 整型
+  ND_ADD,       // +
+  ND_SUB,       // -
+  ND_MUL,       // *
+  ND_DIV,       // /
+  ND_NEG,       // unary -
+  ND_EQ,        // ==
+  ND_NE,        // !=
+  ND_LT,        // <
+  ND_LE,        // <=
+  ND_EXPR_STMT, // Expression statement
+  ND_NUM,       // 整型
 } NodeKind;
 
 
@@ -55,6 +56,7 @@ typedef enum {
 typedef struct Node Node;
 struct Node {
   NodeKind kind;
+  Node *next;
   Node *lhs;
   Node *rhs;
   int val;
