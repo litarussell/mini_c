@@ -97,6 +97,13 @@ Token *tokenize(char *p) {
       continue;
     }
 
+    // identify
+    if ('a' <= *p && *p <= 'z') {
+      cur = cur->next = new_token(TK_IDENT, p, p + 1);
+      p++;
+      continue;
+    }
+
     // punctuator
     int punct_len = read_punct(p);
     if (punct_len) {

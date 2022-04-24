@@ -11,6 +11,7 @@
 // 
 
 typedef enum {
+  TK_IDENT, // Identifiers
   TK_PUNCT, // 标点符号 punctuators
   TK_NUM,   // 数字
   TK_EOF,   // 文件结束标识符
@@ -47,7 +48,9 @@ typedef enum {
   ND_NE,        // !=
   ND_LT,        // <
   ND_LE,        // <=
+  ND_ASSIGN,    // =
   ND_EXPR_STMT, // Expression statement
+  ND_VAR,       // Variable
   ND_NUM,       // 整型
 } NodeKind;
 
@@ -59,7 +62,8 @@ struct Node {
   Node *next;
   Node *lhs;
   Node *rhs;
-  int val;
+  char name;      // used if kind == ND_VAR
+  int val;        // used if kind == ND_NUM
 };
 
 Node *parse(Token *tok);
