@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h> // 用于支持变长参数
@@ -6,10 +7,13 @@
 #include <string.h>
 #include <assert.h>
 
+typedef struct Node Node;
+
 // 
 // tokenizer.c
 // 
 
+// token
 typedef enum {
   TK_IDENT, // Identifiers
   TK_PUNCT, // 标点符号 punctuators
@@ -38,6 +42,23 @@ Token *tokenize(char *input);
 // parser.c
 // 
 
+// local variable
+typedef struct Obj Obj;
+struct Obj {
+  Obj *next;
+  char *name; // variable name
+  int offset; // offset of RBP
+};
+
+// Function
+typedef struct Function Function;
+struct Function {
+  Node *body;
+  Obj *locals;
+  int stack_size;
+};
+
+// AST node
 typedef enum {
   ND_ADD,       // +
   ND_SUB,       // -
@@ -54,23 +75,21 @@ typedef enum {
   ND_NUM,       // 整型
 } NodeKind;
 
-
 // AST node type
-typedef struct Node Node;
 struct Node {
-  NodeKind kind;
+  NodeKind kind;  
   Node *next;
   Node *lhs;
   Node *rhs;
-  char name;      // used if kind == ND_VAR
+  Obj *var;       // used if kind == ND_VAR
   int val;        // used if kind == ND_NUM
 };
 
-Node *parse(Token *tok);
+Function *parse(Token *tok);
 
 
 // 
 // codegen.c
 // 
 
-void codegen(Node *node);
+void codegen(Function *prog);
