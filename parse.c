@@ -62,8 +62,14 @@ static Obj *new_lvar(char *name) {
   return var;
 }
 
-// stmt = expr-stmt
+// stmt = "return" expr ";" | expr-stmt
 static Node *stmt(Token **rest, Token *tok) {
+  if (equal(tok, "return")) {
+    Node *node = new_unary(ND_RETURN, expr(&tok, tok->next));
+    *rest = skip(tok, ";");
+    return node;
+  }
+  
   return expr_stmt(rest, tok);
 }
 
@@ -109,7 +115,7 @@ static Node *equality(Token **rest, Token *tok) {
   }
 }
 
-// relational = add ("<" and | "<=" add | ">" and | ">=" add)*
+// relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node *relational(Token **rest, Token *tok) {
   Node *node = add(&tok, tok);
 

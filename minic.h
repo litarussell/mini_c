@@ -15,10 +15,11 @@ typedef struct Node Node;
 
 // token
 typedef enum {
-  TK_IDENT, // Identifiers
-  TK_PUNCT, // 标点符号 punctuators
-  TK_NUM,   // 数字
-  TK_EOF,   // 文件结束标识符
+  TK_IDENT,   // Identifiers
+  TK_PUNCT,   // 标点符号 punctuators
+  TK_KEYWORD, // keyword
+  TK_NUM,     // 数字
+  TK_EOF,     // 文件结束标识符
 } TokenKind;
 
 // Token type
@@ -70,6 +71,7 @@ typedef enum {
   ND_LT,        // <
   ND_LE,        // <=
   ND_ASSIGN,    // =
+  ND_RETURN,    // return
   ND_EXPR_STMT, // Expression statement
   ND_VAR,       // Variable
   ND_NUM,       // 整型
