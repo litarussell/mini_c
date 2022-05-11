@@ -84,6 +84,8 @@ typedef enum {
 struct Node {
   NodeKind kind;  
   Node *next;
+  Token *tok;     // representative token
+
   Node *lhs;
   Node *rhs;
 
