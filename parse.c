@@ -66,6 +66,7 @@ static Obj *new_lvar(char *name) {
 // stmt = "return" expr ";"
 //        | "if" "(" expr ")" stmt ("else" stmt)?
 //        | "for" "(" expr-stmt expr? ";" expr? ")" stmt
+//        | "while" "(" expr ")" stmt
 //        | "{" compound-stmt
 //        | expr-stmt
 static Node *stmt(Token **rest, Token *tok) {
@@ -102,6 +103,16 @@ static Node *stmt(Token **rest, Token *tok) {
     tok = skip(tok, ")");
     
     node->then = stmt(rest, tok);
+    return node;
+  }
+
+  if (equal(tok, "while")) {
+    Node *node = new_node(ND_FOR);
+    tok = skip(tok->next, "(");
+    node->cond = expr(&tok, tok);
+    tok = skip(tok, ")");
+    node->then = stmt(rest, tok);
+
     return node;
   }
 
