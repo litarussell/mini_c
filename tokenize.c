@@ -103,7 +103,7 @@ static void convert_keywords(Token *tok) {
       t->kind = TK_KEYWORD;
 }
 
-// Tokenize a given string and renturn new tokens
+// Tokenize a given string and return new tokens
 Token *tokenize(char *p) {
   current_input = p;
   Token head = {};

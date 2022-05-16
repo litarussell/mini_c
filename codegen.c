@@ -42,8 +42,11 @@ static void gen_addr(Node *node) {
 
 // generate code for a given node
 static void gen_expr(Node *node) {
+  // 生成各个根节点
   switch (node->kind) {
   case ND_NUM:
+    // 加载数字到rax寄存器中
+    printf("  # 加载立即数到rax寄存器中\n");
     printf("  mov $%d, %%rax\n", node->val);
     return;
   case ND_NEG:
@@ -54,8 +57,10 @@ static void gen_expr(Node *node) {
     gen_addr(node);
     printf("  mov (%%rax), %%rax\n");
     return;
+  // 解引用
   case ND_DEREF:
     gen_expr(node->lhs);
+    printf("  # 读取寄存器rax中存放的地址, 得到的值存入rax中\n");
     printf("  mov (%%rax), %%rax\n");
     return;
   case ND_ADDR:
@@ -70,7 +75,9 @@ static void gen_expr(Node *node) {
     return;
   }
 
+  // 递归到最右节点
   gen_expr(node->rhs);
+  // 结果压栈
   push();
   gen_expr(node->lhs);
   pop("%rdi");
@@ -152,7 +159,10 @@ static void gen_stmt(Node *node) {
       gen_stmt(n);
     return;
   case ND_RETURN:
+    printf("# 返回语句\n");
     gen_expr(node->lhs);
+    // 无条件跳转语句, 跳转到.L.return段
+    printf("  # 跳转到.L.return段\n");
     printf("  jmp .L.return\n");
     return;
   case ND_EXPR_STMT:

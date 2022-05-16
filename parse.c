@@ -5,6 +5,7 @@
 Obj *locals;
 
 static Node *compound_stmt(Token **rest, Token *tok);
+static Node *stmt(Token **rest, Token *tok);
 static Node *expr_stmt(Token **rest, Token *tok);
 static Node *expr(Token **rest, Token *tok);
 static Node *assign(Token **rest, Token *tok);
@@ -125,14 +126,19 @@ static Node *stmt(Token **rest, Token *tok) {
   return expr_stmt(rest, tok);
 }
 
+// 解析复合语句
 // compound-stmt = stmt* "}"
 static Node *compound_stmt(Token **rest, Token *tok) {
   Node *node = new_node(ND_BLOCK, tok);
 
+  // 这里使用了和词法分析类似的单向链表结构
   Node head = {};
   Node *cur = &head;
-  while (!equal(tok, "}"))
+  while (!equal(tok, "}")) {
     cur = cur->next = stmt(&tok, tok);
+    // 构造完AST后, 为节点添加类型信息
+    add_type(cur);
+  }
 
   node->body = head.next;
   *rest = tok->next;
@@ -153,12 +159,14 @@ static Node *expr_stmt(Token **rest, Token *tok) {
   return node;
 }
 
+// 解析表达式
 // expr = assign
 static Node *expr(Token **rest, Token *tok) {
   return assign(rest, tok);
 }
 
-// assign = equality ("=" assign)
+// 解析赋值
+// assign = equality ("=" assign)?
 static Node *assign(Token **rest, Token *tok) {
   Node *node = equality(&tok, tok);
   if (equal(tok, "="))
@@ -168,7 +176,7 @@ static Node *assign(Token **rest, Token *tok) {
   return node;
 }
 
-// equality = relational ("==" | "!=")*
+// equality = relational ("==" relational | "!=" relational)*
 static Node *equality(Token **rest, Token *tok) {
   Node *node = relational(&tok, tok);
 
@@ -190,6 +198,7 @@ static Node *equality(Token **rest, Token *tok) {
   }
 }
 
+// 解析比较关系
 // relational = add ("<" add | "<=" add | ">" add | ">=" add)*
 static Node *relational(Token **rest, Token *tok) {
   Node *node = add(&tok, tok);
@@ -222,6 +231,62 @@ static Node *relational(Token **rest, Token *tok) {
   }
 }
 
+// 解析各种加法
+// In c program, if p is a pointer, p+n means sizeof(*p)*n.
+static Node *new_add(Node *lhs, Node *rhs, Token *tok) {
+  // 为左右部添加类型
+  add_type(lhs);
+  add_type(rhs);
+
+  // num + num
+  if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    return new_binary(ND_ADD, lhs, rhs, tok);
+  
+  // 不能解析 ptr + ptr 这样的语法
+  if (lhs->ty->base && rhs->ty->base)
+    error_tok(tok, "invalid operands");
+  
+  // 将 num + ptr 转换为 ptr + num
+  if (!lhs->ty->base && rhs->ty->base) {
+    Node *tmp = lhs;
+    lhs = rhs;
+    rhs = tmp;
+  }
+
+  // ptr + num
+  // 指针加法, ptr + 1, 这里的1是: 指针指向类型的大小 * 1 = 1 * 8
+  rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+  return new_binary(ND_ADD, lhs, rhs, tok);
+}
+
+// Like `+`, `-` is overloaded for the pointer type.
+static Node *new_sub(Node *lhs, Node *rhs, Token *tok) {
+  add_type(lhs);
+  add_type(rhs);
+
+  // num - num
+  if (is_integer(lhs->ty) && is_integer(rhs->ty))
+    return new_binary(ND_SUB, lhs, rhs, tok);
+  
+  // ptr - num
+  if (lhs->ty->base && is_integer(rhs->ty)) {
+    rhs = new_binary(ND_MUL, rhs, new_num(8, tok), tok);
+    add_type(rhs);
+    Node *node = new_binary(ND_SUB, lhs, rhs, tok);
+    node->ty = lhs->ty;
+    return node;
+  }
+  
+  // ptr - ptr, which returns how many elements are between the two.
+  if (lhs->ty->base && rhs->ty->base) {
+    Node *node = new_binary(ND_SUB, lhs, rhs, tok);
+    node->ty = ty_int;
+    return new_binary(ND_DIV, node, new_num(8, tok), tok);
+  }
+
+  error_tok(tok, "invalid operands");
+}
+
 // add = mul ("+" mul | "-" mul)*
 static Node *add(Token **rest, Token *tok) {
   Node *node = mul(&tok, tok);
@@ -229,13 +294,15 @@ static Node *add(Token **rest, Token *tok) {
   for (;;) {
     Token *start = tok;
 
+    // "+" mul
     if (equal(tok, "+")) {
-      node = new_binary(ND_ADD, node, mul(&tok, tok->next), start);
+      node = new_add(node, mul(&tok, tok->next), start);
       continue;
     }
 
+    // "-" mul
     if (equal(tok, "-")) {
-      node = new_binary(ND_SUB, node, mul(&tok, tok->next), start);
+      node = new_sub(node, mul(&tok, tok->next), start);
       continue;
     }
 
@@ -283,6 +350,7 @@ static Node *unary(Token **rest, Token *tok) {
   return primary(rest, tok);
 }
 
+// 解析括号、变量、数字
 // primary = "(" expr ")" | ident | num
 static Node *primary(Token **rest, Token *tok) {
   if (equal(tok, "(")) {
