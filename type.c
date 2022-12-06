@@ -43,20 +43,22 @@ void add_type(Node *node) {
   case ND_NE:
   case ND_LT:
   case ND_LE:
-  case ND_VAR:
   case ND_NUM:
     node->ty = ty_int;
+    return;
+  // 将节点类型设置为 变量的类型
+  case ND_VAR:
+    node->ty = node->var->ty;
     return;
   // 将节点类型设置为 指针, 并指向左部的类型
   case ND_ADDR:
     node->ty = pointer_to(node->lhs->ty);
     return;
-  // 节点类型: 如果解引用指向的是指针, 则为指针指向的类型, 否则为int类型
+  // 节点类型: 如果解引用指向的是指针, 则为指针指向的类型; 否则就报错
   case ND_DEREF:
-    if (node->lhs->ty->kind == TY_PTR)
-      node->ty = node->lhs->ty->base;
-    else
-      node->ty = ty_int;
+    if (node->lhs->ty->kind != TY_PTR)
+      error_tok(node->tok, "invalid pointer dereference");
+    node->ty = node->lhs->ty->base;
     return;
   }
 }

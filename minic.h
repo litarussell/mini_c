@@ -38,6 +38,7 @@ void error_at(char *loc, char *fmt, ...);
 void error_tok(Token *tok, char *fmt, ...);
 bool equal(Token *tok, char *op);
 Token *skip(Token *tok, char *op);
+bool consume(Token **rest, Token *tok, char *str);
 Token *tokenize(char *input);
 
 // 
@@ -49,6 +50,7 @@ typedef struct Obj Obj;
 struct Obj {
   Obj *next;
   char *name; // variable name
+  Type *ty;   // Type
   int offset; // offset of RBP
 };
 
@@ -119,16 +121,27 @@ typedef enum {
 
 struct Type {
   TypeKind kind;
+
+  // Pointer 指针
   Type *base;
+
+  // Declaration 声明
+  Token *name;
 };
 
+// 声明一个全局变量, 定义在type.c中
 extern Type *ty_int;
 
+// 判断是否为整型
 bool is_integer(Type *ty);
+// 构建一个指针类型, 并指向基类
+Type *pointer_to(Type *base);
+// 为节点内的所有节点添加类型
 void add_type(Node *node);
 
 // 
 // codegen.c
+// 语义分析与代码生成
 // 
 
 void codegen(Function *prog);

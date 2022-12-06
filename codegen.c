@@ -30,8 +30,11 @@ static int align_to(int n, int align) {
 static void gen_addr(Node *node) {
   switch(node->kind) {
   case ND_VAR:
+    // 偏移量是相对于rbp的
+    printf("  # 获取变量%s的栈内地址为%d(rbp)\n", node->var->name, node->var->offset);
     printf("  lea %d(%%rbp), %%rax\n", node->var->offset);
     return;
+  // 解引用
   case ND_DEREF:
     gen_expr(node->lhs);
     return;
@@ -66,11 +69,13 @@ static void gen_expr(Node *node) {
   case ND_ADDR:
     gen_addr(node->lhs);
     return;
+  // 赋值
   case ND_ASSIGN:
     gen_addr(node->lhs);
     push();
     gen_expr(node->rhs);
     pop("%rdi");
+    // 赋值
     printf("  mov %%rax, (%%rdi)\n");
     return;
   }
@@ -122,13 +127,22 @@ static void gen_expr(Node *node) {
   error_tok(node->tok, "invalid expression");
 }
 
+// 生成语句
 static void gen_stmt(Node *node) {
   switch (node->kind) {
+  // 生成if语句
   case ND_IF: {
+    // 代码段计数
     int c = count();
+    printf("\n# =====分支语句%d=====\n", c);
+    // 生成条件内语句
+    printf("\n# count表达式%d\n", c);
     gen_expr(node->cond);
+    // 判断结果是否为0, 为0则跳转到else分支
+    printf("  # 若结果为0, 则跳转到分支%d的.L.else.%d段\n", c, c);
     printf("  cmp $0, %%rax\n");
     printf("  je .L.else.%d\n", c);
+    // 生成符合条件后的语句
     gen_stmt(node->then);
     printf("  jmp .L.end.%d\n", c);
     printf(".L.else.%d:\n", c);
