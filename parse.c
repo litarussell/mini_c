@@ -4,6 +4,8 @@
 // accumulated to this list
 Obj *locals;
 
+static Type *declspec(Token **rest, Token *tok);
+static Type *declarator(Token **rest, Token *tok, Type *ty);
 static Node *declaration(Token **rest, Token *tok);
 static Node *compound_stmt(Token **rest, Token *tok);
 static Node *stmt(Token **rest, Token *tok);
@@ -73,13 +75,48 @@ static char *get_ident(Token *tok) {
   return strndup(tok->loc, tok->len);
 }
 
+// 声明的变量类型
 // declspec = "int"
 static Type *declspec(Token **rest, Token *tok) {
   *rest = skip(tok, "int");
   return ty_int;
 }
 
-// declarator = "*"* ident
+// 匹配函数参数
+// type-suffix = ("(" func-params? ")")?
+// func-params = param (",", param)*
+// param = declspec declarator
+static Type *type_suffix(Token **rest, Token *tok, Type *ty) {
+  // ("(" func-params? ")")?
+  if (equal(tok, "(")) {
+    tok = tok->next;
+
+    Type head = {};
+    Type *cur = &head;
+
+    while (!equal(tok, ")")) {
+      // func-params = param (",", param)*
+      // param = declspec declarator
+      if (cur != &head)
+        tok = skip(tok, ",");
+      Type *basety = declspec(&tok, tok);
+      Type *ty = declarator(&tok, tok, basety);
+      // 将类型复制到形参链表一份
+      cur = cur->next = copy_type(ty);
+    }
+
+    ty = func_type(ty);
+    // 传递形参
+    ty->params = head.next;
+    *rest = tok->next;
+    return ty;
+  }
+
+  *rest = tok;
+  return ty;
+}
+
+// declarator = "*"* ident type-suffix
 static Type *declarator(Token **rest, Token *tok, Type *ty) {
   // "*"*
   // 构建所有的(多重)指针
@@ -89,9 +126,9 @@ static Type *declarator(Token **rest, Token *tok, Type *ty) {
   if (tok->kind != TK_IDENT)
     error_tok(tok, "expected a variable name");
 
+  ty = type_suffix(rest, tok->next, ty);
   // 变量名
   ty->name = tok;
-  *rest = tok->next;
   return ty;
 }
 
@@ -428,8 +465,32 @@ static Node *unary(Token **rest, Token *tok) {
   return primary(rest, tok);
 }
 
-// 解析括号、变量、函数调用、数字
-// primary = "(" expr ")" | ident args? | num
+// 解析函数调用
+// funcall = ident "(" (assign ("," assign)*)? ")"
+static Node *funcall(Token **rest, Token *tok) {
+  Token *start = tok;
+  tok = tok->next->next;
+
+  Node head = {};
+  Node *cur = &head;
+
+  while (!equal(tok, ")")) {
+    if (cur != &head)
+      tok = skip(tok, ",");
+    cur = cur->next = assign(&tok, tok);
+  }
+
+  *rest = skip(tok, ")");
+
+  Node *node = new_node(ND_FUNCALL, start);
+  node->funcname = strndup(start->loc, start->len);
+  node->args = head.next;
+
+  return node;
+}
+
+// 解析括号、变量、函数参数变量、数字
+// primary = "(" expr ")" | ident func-args? | num
 // args = "(" ")"
 static Node *primary(Token **rest, Token *tok) {
   if (equal(tok, "(")) {
@@ -441,10 +502,7 @@ static Node *primary(Token **rest, Token *tok) {
   if (tok->kind == TK_IDENT) {
     // 函数调用
     if (equal(tok->next, "(")) {
-      Node *node = new_node(ND_FUNCALL, tok);
-      node->funcname = strndup(tok->loc, tok->len);
-      *rest = skip(tok->next->next, ")");
-      return node;
+      return funcall(rest, tok);
     }
 
     // 变量
@@ -467,13 +525,46 @@ static Node *primary(Token **rest, Token *tok) {
   return 0;
 }
 
-// program = stmt*
-Function *parse(Token *tok) {
-  tok = skip(tok, "{");
-  
-  Function *prog = calloc(1, sizeof(Function));
-  prog->body = compound_stmt(&tok, tok);
-  prog->locals = locals;
+// 为函数参数创建类型
+static void create_param_lvars(Type *param) {
+  if (param) {
+    // 递归到形参底部
+    // 将最底部的变量加入到Locals中
+    create_param_lvars(param->next);
+    // 将参数变量添加到Locals中
+    new_lvar(get_ident(param->name), param);
+  }
+}
 
-  return prog;
+// 解析函数声明
+static Function *function(Token **rest, Token *tok) {
+  Type *ty = declspec(&tok, tok);
+  ty = declarator(&tok, tok, ty);
+
+  locals = NULL;
+
+  Function *fn = calloc(1, sizeof(Function));
+  // 函数名
+  fn->name = get_ident(ty->name);
+  // 函数参数
+  create_param_lvars(ty->params);
+  fn->params = locals;
+
+  tok = skip(tok, "{");
+  fn->body = compound_stmt(rest, tok);
+  fn->locals = locals;
+
+  return fn;
+}
+
+// program = function-definition*
+Function *parse(Token *tok) {
+  // tok = skip(tok, "{");
+  Function head = {};
+  Function *cur = &head;
+
+  while (tok->kind != TK_EOF)
+    cur = cur->next = function(&tok, tok);
+
+  return head.next;;
 }

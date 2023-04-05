@@ -57,6 +57,10 @@ struct Obj {
 // Function
 typedef struct Function Function;
 struct Function {
+  Function *next;
+  char *name;
+  Obj *params;
+
   Node *body;
   Obj *locals;
   int stack_size;
@@ -99,6 +103,7 @@ struct Node {
   Node *body;     // block
 
   char *funcname; // function name
+  Node *args;     // 函数参数
 
   // "if" or "for" statement
   Node *cond;
@@ -120,16 +125,19 @@ Function *parse(Token *tok);
 typedef enum {
   TY_INT,
   TY_PTR,
+  TY_FUNC,
 } TypeKind;
 
 struct Type {
   TypeKind kind;
 
-  // Pointer 指针
-  Type *base;
+  Type *base;       // 指针
 
-  // Declaration 声明
-  Token *name;
+  Token *name;      // 变量、函数名称
+
+  Type *return_ty;  // 函数返回类型
+  Type *params;     // 函数形参
+  Type *next;       // 下一个类型
 };
 
 // 声明一个全局变量, 定义在type.c中
@@ -137,8 +145,12 @@ extern Type *ty_int;
 
 // 判断是否为整型
 bool is_integer(Type *ty);
+// 复制类型
+Type *copy_type(Type *ty);
 // 构建一个指针类型, 并指向基类
 Type *pointer_to(Type *base);
+// 构建一个函数类型
+Type *func_type(Type *return_ty);
 // 为节点内的所有节点添加类型
 void add_type(Node *node);
 
