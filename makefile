@@ -1,3 +1,12 @@
+RISCV=/mnt/d/_ubuntu/_/riscv-glibc
+# qemu-riscv64 -L $RISCV/sysroot ./rvemu
+TOOLPREFIX=$(RISCV)/riscv64-unknown-linux-gnu-
+
+# CC=$(TOOLPREFIX)gcc
+# AS = $(TOOLPREFIX)gas
+# LD = $(TOOLPREFIX)ld
+
+CC=gcc
 CFLAGS=-std=c11 -g -fno-common
 SRCS=$(wildcard *.c)
 OBJS=$(SRCS:.c=.o)

@@ -44,6 +44,7 @@ void add_type(Node *node) {
   case ND_LT:
   case ND_LE:
   case ND_NUM:
+  case ND_FUNCALL:
     node->ty = ty_int;
     return;
   // 将节点类型设置为 变量的类型
@@ -60,5 +61,7 @@ void add_type(Node *node) {
       error_tok(node->tok, "invalid pointer dereference");
     node->ty = node->lhs->ty->base;
     return;
+  default:
+    break;
   }
 }

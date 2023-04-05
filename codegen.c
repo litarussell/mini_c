@@ -38,6 +38,8 @@ static void gen_addr(Node *node) {
   case ND_DEREF:
     gen_expr(node->lhs);
     return;
+  default:
+    break;
   }
 
   error_tok(node->tok, "not an lvalue");
@@ -78,6 +80,13 @@ static void gen_expr(Node *node) {
     // 赋值
     printf("  mov %%rax, (%%rdi)\n");
     return;
+  // 函数调用
+  case ND_FUNCALL:
+    printf("  mov $0, %%rax\n");
+    printf("  call %s\n", node->funcname);
+    return;
+  default:
+    break;
   }
 
   // 递归到最右节点
@@ -122,6 +131,8 @@ static void gen_expr(Node *node) {
 
     printf("  movzb %%al, %%rax\n");
     return;
+  default:
+    break;
   }
 
   error_tok(node->tok, "invalid expression");
@@ -182,6 +193,8 @@ static void gen_stmt(Node *node) {
   case ND_EXPR_STMT:
     gen_expr(node->lhs);
     return;
+  default:
+    break;
   }
 
   error_tok(node->tok, "invalid statement");

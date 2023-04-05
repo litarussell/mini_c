@@ -362,6 +362,7 @@ static Node *new_sub(Node *lhs, Node *rhs, Token *tok) {
   }
 
   error_tok(tok, "invalid operands");
+  return 0;
 }
 
 // add = mul ("+" mul | "-" mul)*
@@ -427,8 +428,9 @@ static Node *unary(Token **rest, Token *tok) {
   return primary(rest, tok);
 }
 
-// 解析括号、变量、数字
-// primary = "(" expr ")" | ident | num
+// 解析括号、变量、函数调用、数字
+// primary = "(" expr ")" | ident args? | num
+// args = "(" ")"
 static Node *primary(Token **rest, Token *tok) {
   if (equal(tok, "(")) {
     Node *node = expr(&tok, tok->next);
@@ -437,6 +439,15 @@ static Node *primary(Token **rest, Token *tok) {
   }
 
   if (tok->kind == TK_IDENT) {
+    // 函数调用
+    if (equal(tok->next, "(")) {
+      Node *node = new_node(ND_FUNCALL, tok);
+      node->funcname = strndup(tok->loc, tok->len);
+      *rest = skip(tok->next->next, ")");
+      return node;
+    }
+
+    // 变量
     Obj *var = find_var(tok);
     if (!var)
       error_tok(tok, "undefined variable");
@@ -452,6 +463,8 @@ static Node *primary(Token **rest, Token *tok) {
   }
 
   error_tok(tok, "expected an expression");
+
+  return 0;
 }
 
 // program = stmt*
