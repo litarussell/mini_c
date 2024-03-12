@@ -47,6 +47,22 @@ static void gen_addr(Node *node) {
   error_tok(node->tok, "not an lvalue");
 }
 
+// 从rax寄存器指向的内存中加载一个数据到rax寄存器中
+static void load(Type *ty) {
+  if (ty->kind == TY_ARRAY) {
+    // 如果是一个数组, 就不加载。因为无法加载一个完整的数组到寄存器。
+    return;
+  }
+  printf("  # 读取寄存器rax中存放的地址, 得到的值存入rax中\n");
+  printf("  mov (%%rax), %%rax\n");
+}
+
+// 将rax寄存器中的数据加载到栈顶指针指向的内存
+static void store(void) {
+  pop("%rdi");
+  printf("  mov %%rax, (%%rdi)\n");
+}
+
 // generate code for a given node
 static void gen_expr(Node *node) {
   // 生成各个根节点
@@ -62,13 +78,12 @@ static void gen_expr(Node *node) {
     return;
   case ND_VAR:
     gen_addr(node);
-    printf("  mov (%%rax), %%rax\n");
+    load(node->ty);
     return;
   // 解引用
   case ND_DEREF:
     gen_expr(node->lhs);
-    printf("  # 读取寄存器rax中存放的地址, 得到的值存入rax中\n");
-    printf("  mov (%%rax), %%rax\n");
+    load(node->ty);
     return;
   case ND_ADDR:
     gen_addr(node->lhs);
@@ -78,9 +93,8 @@ static void gen_expr(Node *node) {
     gen_addr(node->lhs);
     push();
     gen_expr(node->rhs);
-    pop("%rdi");
     // 赋值
-    printf("  mov %%rax, (%%rdi)\n");
+    store();
     return;
   // 函数调用
   case ND_FUNCALL: {
@@ -95,7 +109,7 @@ static void gen_expr(Node *node) {
       pop(argreg[i]);
     
     printf("  mov $0, %%rax\n");
-    printf("  call %s\n", node->funcname);
+    printf("  call _%s\n", node->funcname);
     return;
   }
   default:
@@ -219,7 +233,7 @@ static void assign_lvar_offsets(Function *prog) {
   for (Function *fn = prog; fn ; fn = fn->next) {
     int offset = 0;
     for (Obj *var = fn->locals; var; var = var->next) {
-      offset += 8;
+      offset += var->ty->size;
       var->offset = -offset;
     }
 
@@ -231,8 +245,8 @@ void codegen(Function *prog) {
   assign_lvar_offsets(prog);
 
   for (Function *fn = prog; fn; fn = fn->next) {
-    printf("  .global %s\n", fn->name);
-    printf("%s:\n", fn->name);
+    printf("  .global _%s\n", fn->name);
+    printf("_%s:\n", fn->name);
     current_fn = fn;
 
     printf("  push %%rbp\n");

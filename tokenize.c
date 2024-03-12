@@ -106,7 +106,7 @@ static void convert_keywords(Token *tok) {
       t->kind = TK_KEYWORD;
 }
 
-// Tokenize a given string and return new tokens
+// 词法分析，将输入的字符串转化为Token链表
 Token *tokenize(char *p) {
   current_input = p;
   Token head = {};

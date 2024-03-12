@@ -1,3 +1,5 @@
+#pragma once
+
 #define _POSIX_C_SOURCE 200809L
 #include <stdio.h>
 #include <stdlib.h>
@@ -126,14 +128,18 @@ typedef enum {
   TY_INT,
   TY_PTR,
   TY_FUNC,
+  TY_ARRAY,
 } TypeKind;
 
 struct Type {
   TypeKind kind;
+  int size;
 
   Type *base;       // 指针
 
   Token *name;      // 变量、函数名称
+
+  int array_len;    // 数组的长度
 
   Type *return_ty;  // 函数返回类型
   Type *params;     // 函数形参
@@ -151,6 +157,8 @@ Type *copy_type(Type *ty);
 Type *pointer_to(Type *base);
 // 构建一个函数类型
 Type *func_type(Type *return_ty);
+// 构造一个数组类型
+Type *array_of(Type *base, int size);
 // 为节点内的所有节点添加类型
 void add_type(Node *node);
 
